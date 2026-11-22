@@ -84,6 +84,7 @@ claude mcp add vmware -- node C:\Users\trite\projects\vmware-mcp\dist\index.js
 | `EXTRA_VM_PATHS` | – | `;`-separated VMs outside `VM_ROOT` to allow (read/write, but never deletable) |
 | `VMWARE_MCP_MAX_RUNNING_VMS` | `8` | Refuse to power on more than this many at once |
 | `VMWARE_MCP_CONCURRENCY` | `4` | Default `fleet_*` parallelism |
+| `APT_PROXY` | – | Apt proxy for Debian/Ubuntu installs, e.g. `http://192.168.88.1:3142`. Installed guests keep using it only while it is reachable and go direct otherwise. |
 
 ### Storage requirements — read this first
 

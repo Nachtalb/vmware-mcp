@@ -33,6 +33,19 @@ export interface PreseedOptions {
   fallbackDns?: string[];
 }
 
+// The installed system uses the proxy only while it answers, so apt keeps working when the cache is off.
+// Debian leaves the install-time proxy in apt.conf, Ubuntu in 90curtin-aptproxy and a snapd drop-in.
+export function aptProxyLateCommands(proxy: string): string[] {
+  const { hostname, port } = new URL(proxy);
+  return [
+    `printf '#!/bin/sh\\ntimeout 1 bash -c "</dev/tcp/${hostname}/${port || 80}" 2>/dev/null && echo ${proxy} || echo DIRECT\\n' > /target/usr/local/bin/apt-proxy-detect`,
+    `chmod 755 /target/usr/local/bin/apt-proxy-detect`,
+    `printf 'Acquire::http::Proxy-Auto-Detect "/usr/local/bin/apt-proxy-detect";\\n' > /target/etc/apt/apt.conf.d/00proxy-detect`,
+    `rm -f /target/etc/apt/apt.conf.d/90curtin-aptproxy /target/etc/systemd/system/snapd.service.d/snap_proxy.conf`,
+    `[ ! -f /target/etc/apt/apt.conf ] || sed -i '/Acquire::http::Proxy /d' /target/etc/apt/apt.conf`,
+  ];
+}
+
 export function buildPreseed(o: PreseedOptions): string {
   const locale = o.locale ?? "en_US.UTF-8";
   const keymap = o.keymap ?? "us";
@@ -63,6 +76,7 @@ export function buildPreseed(o: PreseedOptions): string {
       `in-target /usr/sbin/usermod -aG autologin ${o.username} || true`,
     );
   }
+  if (process.env.APT_PROXY) late.push(...aptProxyLateCommands(process.env.APT_PROXY));
   // Marker the provisioner polls for.
   late.push(`printf 'provisioned\\n' > /target/var/log/vmware-mcp-ready`);
   late.push(...(o.lateCommands ?? []));
@@ -91,7 +105,7 @@ d-i netcfg/wireless_wep string
 d-i mirror/country string manual
 d-i mirror/http/hostname string ${mirrorHost}
 d-i mirror/http/directory string ${mirrorDir}
-d-i mirror/http/proxy string
+d-i mirror/http/proxy string ${process.env.APT_PROXY ?? ""}
 
 ### Clock
 d-i clock-setup/utc boolean true

@@ -6,6 +6,8 @@
  * argument, not a `ds=nocloud;s=...` locator.
  */
 
+import { aptProxyLateCommands } from "./preseed.js";
+
 export interface CloudInitOptions {
   hostname: string;
   username: string;
@@ -38,6 +40,7 @@ export function buildUserData(o: CloudInitOptions, passwordHash: string): string
       `printf '[daemon]\\nAutomaticLoginEnable=true\\nAutomaticLogin=${o.username}\\n' > /target/etc/gdm3/custom.conf`,
     );
   }
+  if (process.env.APT_PROXY) late.push(...aptProxyLateCommands(process.env.APT_PROXY));
   late.push(`printf 'provisioned\\n' > /target/var/log/vmware-mcp-ready`);
   late.push(...(o.lateCommands ?? []));
 
@@ -48,7 +51,7 @@ autoinstall:
   keyboard:
     layout: ${o.keyboardLayout ?? "us"}
   timezone: ${o.timezone ?? "Etc/UTC"}
-  identity:
+${process.env.APT_PROXY ? `  proxy: ${process.env.APT_PROXY}\n` : ""}  identity:
     hostname: ${o.hostname}
     username: ${o.username}
     password: "${passwordHash}"
