@@ -6,7 +6,7 @@ import { loadConfig } from "../config.js";
 import { assertIsoAllowed, assertVmPathAllowed, resolveVmxByNameOrPath } from "../paths.js";
 import * as vmrun from "../vmrun.js";
 import * as vmcli from "../vmcli.js";
-import { cdromEntries, diskEntries, ethernetEntries, findVmxInDir, parseVmx, patchVmx, type NetworkType } from "../vmx.js";
+import { FAST_SNAPSHOT, cdromEntries, diskEntries, ethernetEntries, findVmxInDir, parseVmx, patchVmx, type NetworkType } from "../vmx.js";
 import { listRecords, removeRecord, upsertRecord, getRecord, updateRecord } from "../registry.js";
 import { confirmArg, defineTool, json, requireConfirm, text, vmArg } from "./common.js";
 import { allocateVncPort } from "./screen.js";
@@ -164,6 +164,7 @@ export async function createVmCore(a: CreateVmArgs): Promise<CreateVmResult> {
     // provisioning never has to power-cycle just to turn it on.
     "RemoteDisplay.vnc.enabled": "TRUE",
     "RemoteDisplay.vnc.port": String(allocateVncPort()),
+    ...FAST_SNAPSHOT,
     ...diskEntries({ device: diskDevice, vmdkFileName: vmdkName }),
     ...ethernetEntries(0, a.network as NetworkType, a.customVnet),
   };

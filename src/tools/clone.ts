@@ -5,7 +5,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { loadConfig } from "../config.js";
 import { assertVmPathAllowed, resolveVmxByNameOrPath } from "../paths.js";
 import * as vmrun from "../vmrun.js";
-import { clearStaleLocks, findVmxInDir, parseVmx, patchVmx } from "../vmx.js";
+import { FAST_SNAPSHOT, clearStaleLocks, findVmxInDir, parseVmx, patchVmx } from "../vmx.js";
 import { getRecord, listRecords, updateRecord, upsertRecord } from "../registry.js";
 import { runFleet } from "../fleet.js";
 import { allocateVncPort } from "./screen.js";
@@ -30,6 +30,7 @@ function reidentifyClone(vmxPath: string, name: string): number {
     // which blocks an unattended start. Answering it up front keeps clones
     // hands-off, and taking a new UUID is the honest answer for a copy.
     "uuid.action": "create",
+    ...FAST_SNAPSHOT,
   };
   for (const key of cfg.keys()) {
     if (/^ethernet\d+\.(address|generatedaddress|generatedaddressoffset)$/.test(key)) {

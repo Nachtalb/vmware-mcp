@@ -42,6 +42,9 @@ export function writeVmx(vmxPath: string, cfg: VmxConfig): void {
   fs.writeFileSync(vmxPath, body.join("\n") + "\n", "utf8");
 }
 
+// Save memory synchronously on snapshot; the default lazy save trickles at ~8 MB/s and blocks vmrun for minutes.
+export const FAST_SNAPSHOT = { "mainMem.partialLazySave": "FALSE" };
+
 /** Read → mutate → write, preserving everything the mutator did not touch. */
 export function patchVmx(vmxPath: string, changes: Record<string, string | null>): VmxConfig {
   const cfg = parseVmx(vmxPath);
