@@ -1,8 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildPreseed } from "../src/seed/preseed.js";
+import { buildUserData } from "../src/seed/cloudinit.js";
 
 const opts = { hostname: "h", username: "u", password: "p" };
+
+test("Ubuntu autologin covers lightdm as well as gdm3", () => {
+  const s = buildUserData({ ...opts, autologin: true }, "hash");
+  assert.match(s, /autologin-user=u\\\\n.*lightdm\.conf\.d\/90-vmware-mcp\.conf/);
+  assert.match(s, /AutomaticLogin=u\\\\n.*gdm3\/custom\.conf/);
+});
 
 test("APT_PROXY installs the proxy auto-detect script only when set", () => {
   delete process.env.APT_PROXY;

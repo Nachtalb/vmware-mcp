@@ -46,6 +46,16 @@ export function aptProxyLateCommands(proxy: string): string[] {
   ];
 }
 
+// Cover both display managers the Debian family ships; gdm3 reads daemon.conf on Debian, custom.conf on Ubuntu.
+export function autologinLateCommands(user: string, gdmConf: string): string[] {
+  return [
+    `mkdir -p /target/etc/lightdm/lightdm.conf.d`,
+    `printf '[Seat:*]\\nautologin-user=${user}\\nautologin-user-timeout=0\\n' > /target/etc/lightdm/lightdm.conf.d/90-vmware-mcp.conf`,
+    `mkdir -p /target/etc/gdm3`,
+    `printf '[daemon]\\nAutomaticLoginEnable=true\\nAutomaticLogin=${user}\\n' > /target/etc/gdm3/${gdmConf}`,
+  ];
+}
+
 export function buildPreseed(o: PreseedOptions): string {
   const locale = o.locale ?? "en_US.UTF-8";
   const keymap = o.keymap ?? "us";
@@ -66,12 +76,8 @@ export function buildPreseed(o: PreseedOptions): string {
 
   const late: string[] = [];
   if (o.autologin) {
-    // Cover the display managers Debian and Kali actually ship.
     late.push(
-      `mkdir -p /target/etc/lightdm/lightdm.conf.d`,
-      `printf '[Seat:*]\\nautologin-user=${o.username}\\nautologin-user-timeout=0\\n' > /target/etc/lightdm/lightdm.conf.d/90-vmware-mcp.conf`,
-      `mkdir -p /target/etc/gdm3`,
-      `printf '[daemon]\\nAutomaticLoginEnable=true\\nAutomaticLogin=${o.username}\\n' > /target/etc/gdm3/daemon.conf`,
+      ...autologinLateCommands(o.username, "daemon.conf"),
       `in-target /bin/sh -c 'getent group autologin || groupadd -r autologin'`,
       `in-target /usr/sbin/usermod -aG autologin ${o.username} || true`,
     );

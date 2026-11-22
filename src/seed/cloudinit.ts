@@ -6,7 +6,7 @@
  * argument, not a `ds=nocloud;s=...` locator.
  */
 
-import { aptProxyLateCommands } from "./preseed.js";
+import { aptProxyLateCommands, autologinLateCommands } from "./preseed.js";
 
 export interface CloudInitOptions {
   hostname: string;
@@ -34,12 +34,7 @@ export function buildUserData(o: CloudInitOptions, passwordHash: string): string
   ];
 
   const late: string[] = [];
-  if (o.autologin) {
-    late.push(
-      `mkdir -p /target/etc/gdm3`,
-      `printf '[daemon]\\nAutomaticLoginEnable=true\\nAutomaticLogin=${o.username}\\n' > /target/etc/gdm3/custom.conf`,
-    );
-  }
+  if (o.autologin) late.push(...autologinLateCommands(o.username, "custom.conf"));
   if (process.env.APT_PROXY) late.push(...aptProxyLateCommands(process.env.APT_PROXY));
   late.push(`printf 'provisioned\\n' > /target/var/log/vmware-mcp-ready`);
   late.push(...(o.lateCommands ?? []));
