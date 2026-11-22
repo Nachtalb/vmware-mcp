@@ -84,7 +84,7 @@ claude mcp add vmware -- node C:\Users\trite\projects\vmware-mcp\dist\index.js
 | `EXTRA_VM_PATHS` | – | `;`-separated VMs outside `VM_ROOT` to allow (read/write, but never deletable) |
 | `VMWARE_MCP_MAX_RUNNING_VMS` | `8` | Refuse to power on more than this many at once |
 | `VMWARE_MCP_CONCURRENCY` | `4` | Default `fleet_*` parallelism |
-| `APT_PROXY` | – | Apt proxy for Debian/Ubuntu installs, e.g. `http://192.168.88.1:3142`. Installed guests keep using it only while it is reachable and go direct otherwise. |
+| `APT_PROXY` | – | Apt proxy for Debian/Ubuntu installs, e.g. `http://192.168.88.1:3142`. Installed guests keep using it only while it is reachable and go direct otherwise. Arch installs fetch their packages through it too, over plain http, and the installed guest goes direct. |
 
 ### Storage requirements — read this first
 
@@ -155,6 +155,7 @@ linked clone depends on.
 | Ubuntu 24.04 | cloud-init `user-data` | `CIDATA` seed CD-ROM | `autoinstall` at GRUB |
 | Debian 12 | `preseed.cfg` | HTTP from the host | `auto url=…` at boot prompt |
 | Kali | `preseed.cfg` | HTTP from the host | `auto url=…` at boot prompt |
+| Arch Linux (BIOS only) | install script | HTTP from the host | `script=…` at the syslinux menu |
 
 ## Notes on the platform
 

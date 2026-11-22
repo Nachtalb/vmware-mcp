@@ -13,6 +13,7 @@ import { parseVmx } from "../vmx.js";
 import { buildAutounattend } from "../seed/autounattend.js";
 import { buildPreseed, kaliDefaults } from "../seed/preseed.js";
 import { buildUserData } from "../seed/cloudinit.js";
+import { buildArchScript } from "../seed/arch.js";
 import { sha512Crypt } from "../seed/sha512crypt.js";
 import * as vmrun from "../vmrun.js";
 import { defineTool, json, requireConfirm, text, vmArg } from "./common.js";
@@ -47,13 +48,13 @@ export function registerProvisionTools(server: McpServer): void {
     {
       title: "Create and install a VM unattended",
       description:
-        "Build a VM and run its OS install end to end with no interaction: creates the hardware, generates the answer file (autounattend.xml for Windows, cloud-init for Ubuntu, preseed for Debian/Kali), delivers it, types any boot command the installer needs, waits for the install, and verifies the new account can actually run commands before reporting success. This is a long-running call — a Windows or Ubuntu install typically takes 20-40 minutes.",
+        "Build a VM and run its OS install end to end with no interaction: creates the hardware, generates the answer file (autounattend.xml for Windows, cloud-init for Ubuntu, preseed for Debian/Kali, an install script for Arch), delivers it, types any boot command the installer needs, waits for the install, and verifies the new account can actually run commands before reporting success. This is a long-running call — a Windows or Ubuntu install typically takes 20-40 minutes.",
       inputSchema: {
         name: z.string().min(1).describe("VM name; becomes the folder under VM_ROOT and the hostname"),
         installIso: z.string().describe("ISO filename from list_isos"),
         guestOsId: z
           .string()
-          .describe("vmcli guest OS id, e.g. windows9-64, windows9srv-64, ubuntu-64, debian12-64"),
+          .describe("vmcli guest OS id, e.g. windows9-64, windows9srv-64, ubuntu-64, debian12-64, other6xlinux-64 (Arch)"),
         username: z.string().min(1).describe("Account to create and log in as"),
         password: z.string().min(1),
         credentialRef: z
@@ -254,7 +255,7 @@ export function registerProvisionTools(server: McpServer): void {
 
         const kind = installerKindFor(rec.osFamily, path.basename(spec.installIso));
         const seedUrl = undefined; // an HTTP seed server is not running outside provision_vm
-        if (kind === "debian" || kind === "kali") {
+        if (kind === "debian" || kind === "kali" || kind === "arch") {
           throw new Error(
             "This guest takes its answer file over HTTP, which only runs during provision_vm — replaying the boot command alone would leave the installer waiting. Retry with strategy 'rebuild'.",
           );
@@ -390,6 +391,12 @@ export function registerProvisionTools(server: McpServer): void {
           { hostname: a.name, username: a.username, password: a.password, autologin: a.autologin },
           sha512Crypt(a.password),
         );
+      } else if (kind === "arch") {
+        filename = "a (install script)";
+        content = buildArchScript(
+          { hostname: a.name, username: a.username, autologin: a.autologin },
+          sha512Crypt(a.password),
+        );
       } else {
         filename = "preseed.cfg";
         content = buildPreseed({
@@ -404,7 +411,7 @@ export function registerProvisionTools(server: McpServer): void {
       return text(
         [
           `Installer kind: ${kind}`,
-          `Delivery: ${kind === "debian" || kind === "kali" ? "HTTP (auto url=)" : "seed CD-ROM"}`,
+          `Delivery: ${kind === "arch" ? "HTTP (script=)" : kind === "debian" || kind === "kali" ? "HTTP (auto url=)" : "seed CD-ROM"}`,
           `Boot command: ${spec.command}`,
           `Boot wait: ${spec.bootWaitSec}s   Key delay: ${spec.keyDelayMs}ms`,
           `Note: ${spec.notes}`,
@@ -424,7 +431,7 @@ export function registerProvisionTools(server: McpServer): void {
       description:
         "Show the keystrokes provision_vm types at the bootloader for a given installer, with its timing. Useful when tuning a boot command that is not landing.",
       inputSchema: {
-        installerKind: z.enum(["windows", "debian", "kali", "ubuntu-autoinstall"]),
+        installerKind: z.enum(["windows", "debian", "kali", "ubuntu-autoinstall", "arch"]),
         seedUrl: z.string().optional(),
       },
       readOnly: true,

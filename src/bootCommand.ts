@@ -9,7 +9,7 @@
  * overridable per call.
  */
 
-export type InstallerKind = "windows" | "debian" | "kali" | "ubuntu-autoinstall";
+export type InstallerKind = "windows" | "debian" | "kali" | "ubuntu-autoinstall" | "arch";
 
 export interface BootCommandContext {
   /** Base URL of the seed HTTP server, e.g. http://192.168.119.1:54321 */
@@ -85,6 +85,16 @@ export function defaultBootCommand(kind: InstallerKind, ctx: BootCommandContext 
         notes:
           "GRUB line editing is position-sensitive; if the install does not start unattended, screenshot after the <e> and adjust the number of <down> presses.",
       };
+
+    case "arch":
+      return {
+        bootWaitSec: 6,
+        // Tab edits the default syslinux entry (15 s menu timeout); archiso's
+        // automated_script waits for the network, then fetches and runs `script=`.
+        command: `<tab><wait1> script=${ctx.seedUrl ?? "http://SEED_URL"}/a<enter>`,
+        keyDelayMs: 100,
+        notes: "BIOS only. The live ISO downloads the install script from the host over HTTP and runs it as root on tty1.",
+      };
   }
 }
 
@@ -93,6 +103,7 @@ export function installerKindFor(osFamily: string, isoName: string): InstallerKi
   const iso = isoName.toLowerCase();
   if (osFamily === "windows") return "windows";
   if (iso.includes("kali")) return "kali";
+  if (iso.includes("archlinux")) return "arch";
   if (osFamily === "ubuntu" || iso.includes("ubuntu")) return "ubuntu-autoinstall";
   return "debian";
 }

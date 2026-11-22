@@ -200,13 +200,13 @@ Mount the VMware Tools installer in the running guest. On Windows this attaches 
 
 _provision_vm_
 
-Build a VM and run its OS install end to end with no interaction: creates the hardware, generates the answer file (autounattend.xml for Windows, cloud-init for Ubuntu, preseed for Debian/Kali), delivers it, types any boot command the installer needs, waits for the install, and verifies the new account can actually run commands before reporting success. This is a long-running call — a Windows or Ubuntu install typically takes 20-40 minutes.
+Build a VM and run its OS install end to end with no interaction: creates the hardware, generates the answer file (autounattend.xml for Windows, cloud-init for Ubuntu, preseed for Debian/Kali, an install script for Arch), delivers it, types any boot command the installer needs, waits for the install, and verifies the new account can actually run commands before reporting success. This is a long-running call — a Windows or Ubuntu install typically takes 20-40 minutes.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | **required** | VM name; becomes the folder under VM_ROOT and the hostname |
 | `installIso` | string | **required** | ISO filename from list_isos |
-| `guestOsId` | string | **required** | vmcli guest OS id, e.g. windows9-64, windows9srv-64, ubuntu-64, debian12-64 |
+| `guestOsId` | string | **required** | vmcli guest OS id, e.g. windows9-64, windows9srv-64, ubuntu-64, debian12-64, other6xlinux-64 (Arch) |
 | `username` | string | **required** | Account to create and log in as |
 | `password` | string | **required** |  |
 | `credentialRef` | string | optional | Store the credentials under this name and attach it to the VM for later guest_* calls |
@@ -282,7 +282,7 @@ Show the keystrokes provision_vm types at the bootloader for a given installer, 
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `installerKind` | `windows` \| `debian` \| `kali` \| `ubuntu-autoinstall` | **required** |  |
+| `installerKind` | `windows` \| `debian` \| `kali` \| `ubuntu-autoinstall` \| `arch` | **required** |  |
 | `seedUrl` | string | optional |  |
 
 ## Guest control

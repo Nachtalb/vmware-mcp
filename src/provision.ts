@@ -10,6 +10,7 @@ import { buildSeedIso, seedIsoPathFor } from "./seed/isoBuilder.js";
 import { buildAutounattend } from "./seed/autounattend.js";
 import { buildPreseed, kaliDefaults } from "./seed/preseed.js";
 import { buildUserData, buildMetaData } from "./seed/cloudinit.js";
+import { buildArchScript } from "./seed/arch.js";
 import { sha512Crypt, verifySelfTest } from "./seed/sha512crypt.js";
 import { startSeedServer, type SeedServer } from "./seed/httpSeed.js";
 import { defaultBootCommand, installerKindFor, type InstallerKind } from "./bootCommand.js";
@@ -168,6 +169,9 @@ export async function provisionVm(req: ProvisionRequest): Promise<ProvisionResul
   if (kind === "windows" && req.setupCommands?.length) {
     throw new Error("setupCommands applies to Linux installs only; Windows guests do not support it.");
   }
+  if (kind === "arch" && req.firmware === "efi") {
+    throw new Error("The Arch install path supports firmware \"bios\" only.");
+  }
 
   let seedServer: SeedServer | null = null;
   let vmxPath = "";
@@ -284,6 +288,22 @@ export async function provisionVm(req: ProvisionRequest): Promise<ProvisionResul
       seedIso = built.path;
       note(`Built cloud-init CIDATA seed ISO (${built.sizeBytes} bytes).`);
       patchVmx(vmxPath, cdromEntries({ device: "sata0:2", isoPath: seedIso }));
+    } else if (kind === "arch") {
+      const script = buildArchScript(
+        {
+          hostname: req.name,
+          username: req.username,
+          locale: req.locale,
+          timezone: req.timezone,
+          autologin: req.autologin,
+          extraPackages: req.extraPackages,
+          setupCommands: req.setupCommands,
+        },
+        sha512Crypt(req.password),
+      );
+      seedServer = await startSeedServer({ a: script });
+      seedUrl = seedServer.url;
+      note(`Serving the install script at ${seedUrl}/a (bound to the host's virtual-network address only).`);
     } else {
       // Debian and Kali: preseed over HTTP.
       const preseed = buildPreseed({
@@ -334,7 +354,7 @@ export async function provisionVm(req: ProvisionRequest): Promise<ProvisionResul
       for (let attempt = 2; !fetched && attempt <= 3; attempt++) {
         const shot = await grabScreenshot(vmxPath).catch(() => undefined);
         note(
-          `Preseed not fetched; the boot command likely dropped keystrokes. Retyping (attempt ${attempt}/3)${shot ? `. Screen: ${shot}` : ""}.`,
+          `Answer file not fetched; the boot command likely dropped keystrokes. Retyping (attempt ${attempt}/3)${shot ? `. Screen: ${shot}` : ""}.`,
         );
         await playBootCommand({ port: vncPort }, parseBootCommand("<enter><wait3>"), 150);
         await playBootCommand({ port: vncPort }, steps, Math.round(keyDelayMs * 1.5));
@@ -343,10 +363,10 @@ export async function provisionVm(req: ProvisionRequest): Promise<ProvisionResul
       if (!fetched) {
         const shot = await grabScreenshot(vmxPath).catch(() => undefined);
         throw new Error(
-          `The installer never fetched the preseed from ${seedUrl} after 3 attempts. Check the screenshot${shot ? ` at ${shot}` : ""} — if the prompt shows a truncated URL, raise keyDelayMs; if it shows a menu, raise bootWaitSec.`,
+          `The installer never fetched its answer file from ${seedUrl} after 3 attempts. Check the screenshot${shot ? ` at ${shot}` : ""} — if the prompt shows a truncated URL, raise keyDelayMs; if it shows a menu, raise bootWaitSec.`,
         );
       }
-      note("Installer fetched the preseed; unattended install is under way.");
+      note("Installer fetched its answer file; unattended install is under way.");
     }
     setPhase("installing");
 
