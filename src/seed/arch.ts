@@ -17,6 +17,7 @@ export interface ArchOptions {
   setupCommands?: string[];
 }
 
+// Always direct, never APT_PROXY: apt-cacher-ng's expiry misreads Arch repo dbs and drops current packages.
 const MIRROR = "mirror.init7.net/archlinux/$repo/os/$arch";
 const DISPLAY_MANAGERS = ["lightdm", "gdm", "sddm", "lxdm"];
 
@@ -30,7 +31,6 @@ export function buildArchScript(o: ArchOptions, passwordHash: string): string {
     ...(o.autologin ? ["gtkmm3"] : []),
     ...(o.extraPackages ?? []),
   ];
-  const proxy = process.env.APT_PROXY;
   const u = q(o.username);
 
   const chroot = [
@@ -63,7 +63,7 @@ export function buildArchScript(o: ArchOptions, passwordHash: string): string {
 set -euxo pipefail
 systemctl stop reflector.service || true
 systemctl start pacman-init.service
-${proxy ? `export http_proxy=${q(proxy)}\necho ${q(`Server = http://${MIRROR}`)}` : `echo ${q(`Server = https://${MIRROR}`)}`} > /etc/pacman.d/mirrorlist
+echo ${q(`Server = https://${MIRROR}`)} > /etc/pacman.d/mirrorlist
 disk=/dev/$(lsblk -dno NAME,TYPE | awk '$2=="disk"{print $1; exit}')
 wipefs -af "$disk"
 echo 'type=83,bootable' | sfdisk "$disk"

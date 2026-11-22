@@ -38,13 +38,12 @@ test("Arch script creates the user from a quoted hash, installs Tools and extras
   assert.equal(Buffer.from(b64, "base64").toString(), cmds.join("\n") + "\n");
 });
 
-test("Arch installs through APT_PROXY over http but leaves the guest on the direct https mirror", () => {
-  delete process.env.APT_PROXY;
-  assert.doesNotMatch(buildArchScript(opts, "hash"), /http_proxy|Server = http:/);
+test("Arch installs from the direct https mirror and ignores APT_PROXY", () => {
   process.env.APT_PROXY = "http://10.0.0.1:3142";
   try {
     const s = buildArchScript(opts, "hash");
-    assert.match(s, /export http_proxy='http:\/\/10\.0\.0\.1:3142'\necho 'Server = http:\/\/mirror\.init7\.net\/archlinux\/\$repo\/os\/\$arch' > \/etc\/pacman\.d\/mirrorlist/);
+    assert.doesNotMatch(s, /http_proxy|3142|Server = http:/);
+    assert.match(s, /echo 'Server = https:\/\/mirror\.init7\.net\/archlinux\/\$repo\/os\/\$arch' > \/etc\/pacman\.d\/mirrorlist/);
     assert.match(s, /echo 'Server = https:\/\/mirror\.init7\.net\/archlinux\/\$repo\/os\/\$arch' > \/mnt\/etc\/pacman\.d\/mirrorlist/);
   } finally {
     delete process.env.APT_PROXY;
