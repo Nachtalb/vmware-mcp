@@ -13,7 +13,7 @@ export interface PreseedOptions {
   locale?: string;
   keymap?: string;
   timezone?: string;
-  /** Kali's default mirror differs from Debian's. */
+  /** Defaults to the init7 mirror; Kali's directory differs from Debian's. */
   mirrorHostname?: string;
   mirrorDirectory?: string;
   /** tasksel task list, e.g. ["standard"] or ["kali-desktop-xfce"]. */
@@ -69,7 +69,7 @@ export function buildPreseed(o: PreseedOptions): string {
   const locale = o.locale ?? "en_US.UTF-8";
   const keymap = o.keymap ?? "us";
   const tz = o.timezone ?? "Etc/UTC";
-  const mirrorHost = o.mirrorHostname ?? "deb.debian.org";
+  const mirrorHost = o.mirrorHostname ?? "mirror.init7.net";
   const mirrorDir = o.mirrorDirectory ?? "/debian";
   const tasks = o.tasks ?? ["standard"];
 
@@ -122,6 +122,8 @@ d-i mirror/country string manual
 d-i mirror/http/hostname string ${mirrorHost}
 d-i mirror/http/directory string ${mirrorDir}
 d-i mirror/http/proxy string ${process.env.APT_PROXY ?? ""}
+d-i apt-setup/security_host string mirror.init7.net
+d-i apt-setup/security_path string /debian-security
 
 ### Clock
 d-i clock-setup/utc boolean true
@@ -173,10 +175,9 @@ ${late.map((c) => `  ${c}`).join(" ; \\\n")}
 `;
 }
 
-/** Kali's mirror and default desktop task differ from stock Debian. */
+/** Kali's mirror directory and default desktop task differ from stock Debian. */
 export function kaliDefaults(): Partial<PreseedOptions> {
   return {
-    mirrorHostname: "http.kali.org",
     mirrorDirectory: "/kali",
     tasks: ["kali-desktop-xfce", "kali-tools-top10"],
   };

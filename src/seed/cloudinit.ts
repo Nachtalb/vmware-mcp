@@ -49,7 +49,14 @@ autoinstall:
   keyboard:
     layout: ${o.keyboardLayout ?? "us"}
   timezone: ${o.timezone ?? "Etc/UTC"}
-${process.env.APT_PROXY ? `  proxy: ${process.env.APT_PROXY}\n` : ""}  identity:
+${process.env.APT_PROXY ? `  proxy: ${process.env.APT_PROXY}\n` : ""}  apt:
+    mirror-selection:
+      primary:
+        - uri: http://mirror.init7.net/ubuntu
+    security:
+      - arches: [default]
+        uri: http://mirror.init7.net/ubuntu
+  identity:
     hostname: ${o.hostname}
     username: ${o.username}
     password: "${passwordHash}"
