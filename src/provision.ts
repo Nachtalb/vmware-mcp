@@ -370,28 +370,23 @@ export async function provisionVm(req: ProvisionRequest): Promise<ProvisionResul
     setPhase("tools-present");
 
     // ---------------------------------------------------------------- verify login
-    // Tools reporting present does not mean the account is usable, so prove it
-    // by running a real command as the new user.
+    // Live installer environments run Tools too, so only a working login of the
+    // new account proves the install finished: probe until the install deadline.
     let loginVerified = false;
-    // Ubuntu's live installer runs open-vm-tools too, so Tools says nothing about install progress:
-    // probe until the install deadline and never reset it.
-    const live = kind === "ubuntu-autoinstall";
-    const loginDeadline = live ? deadline : Date.now() + 12 * 60_000;
+    const probingSince = Date.now();
     let nudged = false;
-    while (!loginVerified && Date.now() < loginDeadline) {
+    while (!loginVerified && Date.now() < deadline) {
       const probe = await probeCredentials(cred, vmxPath, kind === "windows").catch(() => false);
       if (probe) {
         loginVerified = true;
         break;
       }
 
-      // Half way through, if Tools is stuck at "installed", reboot once. That
-      // completes the handshake in practice; observed on Kali, where guest ops
-      // went from failing to working immediately afterwards. Cheaper than
-      // failing the whole provision on a VM that has installed correctly.
-      if (!live && !nudged && Date.now() > loginDeadline - 6 * 60_000) {
+      // After 6 min, if Tools is genuinely not running (a live installer keeps
+      // its heartbeat up), reboot once to complete the handshake; observed on Kali.
+      if (!nudged && Date.now() - probingSince > 6 * 60_000) {
         nudged = true;
-        const state = await vmrun.checkToolsState(vmxPath);
+        const state = await vmrun.toolsReady(vmxPath);
         if (state !== "running") {
           note(`Tools stuck at "${state}" and guest commands failing — rebooting once to complete the handshake.`);
           await vmrun.reset(vmxPath, "soft").catch(() => undefined);
@@ -406,8 +401,8 @@ export async function provisionVm(req: ProvisionRequest): Promise<ProvisionResul
     if (!loginVerified) {
       updateRecord(req.name, { lifecycle: "failed", lastError: "guest credentials did not work" });
       throw new Error(
-        `VMware Tools is running but the account "${req.username}" could not execute a command. ` +
-          `The OS installed, but the credentials or auto-logon did not take${screenshot ? `. Screenshot: ${screenshot}` : ""}.`,
+        `The account "${req.username}" could not execute a command within ${req.installTimeoutMin} minutes. ` +
+          `The install did not finish, or the credentials did not take${screenshot ? `. Screenshot: ${screenshot}` : ""}.`,
       );
     }
     note(`Verified login as "${req.username}" by running a command in the guest.`);
