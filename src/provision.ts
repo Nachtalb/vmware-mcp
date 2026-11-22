@@ -477,10 +477,10 @@ export async function finalizeProvision(o: FinalizeOptions): Promise<ProvisionRe
   };
 
   const deadline = Date.now() + o.waitMinutes * 60_000;
-  let toolsState = await vmrun.checkToolsState(o.vmxPath);
+  let toolsState = await vmrun.toolsReady(o.vmxPath);
   while (toolsState !== "running" && Date.now() < deadline) {
     await sleep(20_000);
-    toolsState = await vmrun.checkToolsState(o.vmxPath);
+    toolsState = await vmrun.toolsReady(o.vmxPath);
   }
   if (toolsState !== "running") {
     throw new Error(

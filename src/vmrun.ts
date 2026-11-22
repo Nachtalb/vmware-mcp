@@ -1,5 +1,6 @@
 import { loadConfig, type GuestCredential } from "./config.js";
 import { run, type ExecResult, type RunOptions } from "./exec.js";
+import { queryTools } from "./vmcli.js";
 
 /**
  * Encryption passwords for encrypted VMs, keyed by lowercased .vmx path.
@@ -98,6 +99,14 @@ export async function checkToolsState(vmx: string): Promise<ToolsState> {
   if (/^notinstalled$/i.test(s)) return "notInstalled";
   if (/^notrunning$/i.test(s)) return "notRunning";
   return "unknown";
+}
+
+// checkToolsState stays "installed" after boot until the first authenticated guest op; vmcli sees the live heartbeat.
+export async function toolsReady(vmx: string): Promise<ToolsState> {
+  const s = await checkToolsState(vmx);
+  if (s !== "installed") return s;
+  const { stdout } = await queryTools(vmx);
+  return /^\s*runningStatus: running\s*$/m.test(stdout) ? "running" : s;
 }
 
 export const installTools = (vmx: string) => vmrun(["installTools", vmx]);

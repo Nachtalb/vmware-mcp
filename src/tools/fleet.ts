@@ -99,10 +99,10 @@ export function registerFleetTools(server: McpServer): void {
           await vmrun.start(r.vmxPath, a.mode);
           if (!a.waitForTools) return { started: true };
           const deadline = Date.now() + a.toolsTimeoutSec * 1000;
-          let state = await vmrun.checkToolsState(r.vmxPath);
+          let state = await vmrun.toolsReady(r.vmxPath);
           while (state !== "running" && Date.now() < deadline) {
             await new Promise((x) => setTimeout(x, 5000));
-            state = await vmrun.checkToolsState(r.vmxPath);
+            state = await vmrun.toolsReady(r.vmxPath);
           }
           return { started: true, toolsState: state };
         },
@@ -173,7 +173,7 @@ export function registerFleetTools(server: McpServer): void {
         recs,
         (r) => r.name,
         async (r) => {
-          const state = await vmrun.checkToolsState(r.vmxPath);
+          const state = await vmrun.toolsReady(r.vmxPath);
           if (state !== "running") {
             throw new Error(`VMware Tools is "${state}"; the guest is not reachable.`);
           }

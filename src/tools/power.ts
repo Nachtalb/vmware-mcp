@@ -60,7 +60,7 @@ export function registerPowerTools(server: McpServer): void {
       if (!a.waitForTools) return text(`Started ${vmx} (${a.mode}).`);
 
       const r = await waitFor(
-        () => vmrun.checkToolsState(vmx),
+        () => vmrun.toolsReady(vmx),
         (s) => s === "running",
         { timeoutMs: a.toolsTimeoutSec * 1000, intervalMs: 5000 },
       );
@@ -138,7 +138,7 @@ export function registerPowerTools(server: McpServer): void {
     async (a) => {
       const vmx = resolveVmxByNameOrPath(a.vm);
       const r = await waitFor(
-        () => vmrun.checkToolsState(vmx),
+        () => vmrun.toolsReady(vmx),
         (s) => s === "running",
         { timeoutMs: a.timeoutSec * 1000, intervalMs: 5000 },
       );
