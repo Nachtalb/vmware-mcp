@@ -39,6 +39,8 @@ export interface ProvisionRequest {
   /** Linux only: log the desktop user in automatically. */
   autologin?: boolean;
   extraPackages?: string[];
+  /** Linux only: shell commands run as root in the installed system at the end of the install. */
+  setupCommands?: string[];
   timezone?: string;
   locale?: string;
   /** Override the typed boot command and its timing. */
@@ -163,6 +165,9 @@ export async function provisionVm(req: ProvisionRequest): Promise<ProvisionResul
   );
   const isoName = path.basename(isoPath);
   const kind = installerKindFor(guessFamily(req.guestOsId), isoName);
+  if (kind === "windows" && req.setupCommands?.length) {
+    throw new Error("setupCommands applies to Linux installs only; Windows guests do not support it.");
+  }
 
   let seedServer: SeedServer | null = null;
   let vmxPath = "";
@@ -195,7 +200,7 @@ export async function provisionVm(req: ProvisionRequest): Promise<ProvisionResul
       network: req.network, customVnet: req.customVnet,
       windowsImageName: req.windowsImageName, windowsImageIndex: req.windowsImageIndex,
       productKey: req.productKey, bypassHardwareChecks: req.bypassHardwareChecks,
-      autologin: req.autologin, extraPackages: req.extraPackages,
+      autologin: req.autologin, extraPackages: req.extraPackages, setupCommands: req.setupCommands,
       timezone: req.timezone, locale: req.locale,
       bootCommand: req.bootCommand, bootWaitSec: req.bootWaitSec, keyDelayMs: req.keyDelayMs,
       installTimeoutMin: req.installTimeoutMin, snapshotWhenReady: req.snapshotWhenReady,
@@ -263,6 +268,7 @@ export async function provisionVm(req: ProvisionRequest): Promise<ProvisionResul
           timezone: req.timezone,
           autologin: req.autologin,
           extraPackages: req.extraPackages,
+          setupCommands: req.setupCommands,
         },
         hash,
       );
@@ -288,6 +294,7 @@ export async function provisionVm(req: ProvisionRequest): Promise<ProvisionResul
         timezone: req.timezone,
         autologin: req.autologin,
         extraPackages: req.extraPackages,
+        setupCommands: req.setupCommands,
         ...(kind === "kali" ? kaliDefaults() : {}),
       });
       // "p" is an alias for "preseed.cfg": 10 fewer characters to type at a
@@ -407,6 +414,16 @@ export async function provisionVm(req: ProvisionRequest): Promise<ProvisionResul
     }
     note(`Verified login as "${req.username}" by running a command in the guest.`);
     setPhase("login-verified");
+
+    if (req.setupCommands?.length) {
+      const ran = await vmrun.fileExistsInGuest(cred, vmxPath, "/var/log/vmware-mcp-setup.log");
+      if (!ran || (await vmrun.fileExistsInGuest(cred, vmxPath, "/var/log/vmware-mcp-setup.failed"))) {
+        throw new Error(
+          `setupCommands ${ran ? "failed" : "did not run"}; see /var/log/vmware-mcp-setup.log in the guest. The VM is left running.`,
+        );
+      }
+      note("Setup commands ran as root; output in /var/log/vmware-mcp-setup.log.");
+    }
 
     // ---------------------------------------------------------------- finish
     const snapshot = await finishProvisioning(

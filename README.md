@@ -126,6 +126,12 @@ commands — after which every `guest_*` tool works.
 any MCP client's request timeout. Pass `wait: true` only from a script that can
 hold the connection open.
 
+For root setup on Linux guests, pass `setupCommands`: shell commands run as root
+inside the installed system at the end of the install, so nothing needs `sudo`
+afterwards and the account keeps normal password sudo. Quoting is kept intact;
+a failing command fails the provision, and the output lands in
+`/var/log/vmware-mcp-setup.log` in the guest.
+
 ### Cloning: the fast way to a lab
 
 Installing is for the *first* VM. After that, clone:

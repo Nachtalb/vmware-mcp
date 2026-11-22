@@ -6,7 +6,7 @@
  * argument, not a `ds=nocloud;s=...` locator.
  */
 
-import { aptProxyLateCommands, autologinLateCommands } from "./preseed.js";
+import { aptProxyLateCommands, autologinLateCommands, setupScriptCommand } from "./preseed.js";
 
 export interface CloudInitOptions {
   hostname: string;
@@ -19,6 +19,8 @@ export interface CloudInitOptions {
   autologin?: boolean;
   extraPackages?: string[];
   lateCommands?: string[];
+  /** Run as root inside the installed system at the end of the install. */
+  setupCommands?: string[];
   /** Full-disk install target. */
   diskMatchSize?: "largest" | "smallest";
 }
@@ -38,6 +40,7 @@ export function buildUserData(o: CloudInitOptions, passwordHash: string): string
   if (process.env.APT_PROXY) late.push(...aptProxyLateCommands(process.env.APT_PROXY));
   late.push(`printf 'provisioned\\n' > /target/var/log/vmware-mcp-ready`);
   late.push(...(o.lateCommands ?? []));
+  if (o.setupCommands?.length) late.push(`curtin in-target -- ${setupScriptCommand(o.setupCommands)}`);
 
   return `#cloud-config
 autoinstall:

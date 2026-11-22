@@ -44,6 +44,7 @@ export interface ProvisionSpec {
   bypassHardwareChecks?: boolean;
   autologin?: boolean;
   extraPackages?: string[];
+  setupCommands?: string[];
   timezone?: string;
   locale?: string;
   bootCommand?: string;

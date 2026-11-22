@@ -11,6 +11,16 @@ test("Ubuntu autologin covers lightdm as well as gdm3", () => {
   assert.match(s, /AutomaticLogin=u\\\\n.*gdm3\/custom\.conf/);
 });
 
+test("setupCommands reach both answer files with quoting intact", () => {
+  const cmds = [`printf '%s\\n' "it's \\"q\\" $HOME" > /etc/x && echo ok`, "touch /root/y"];
+  for (const s of [buildPreseed({ ...opts, setupCommands: cmds }), buildUserData({ ...opts, setupCommands: cmds }, "hash")]) {
+    const b64 = s.match(/echo ([A-Za-z0-9+/=]+) \| base64 -d/)![1];
+    assert.equal(Buffer.from(b64, "base64").toString(), cmds.join("\n") + "\n");
+  }
+  assert.match(buildPreseed({ ...opts, setupCommands: cmds }), /in-target sh -c 'echo /);
+  assert.match(buildUserData({ ...opts, setupCommands: cmds }, "hash"), /curtin in-target -- sh -c 'echo /);
+});
+
 test("APT_PROXY installs the proxy auto-detect script only when set", () => {
   delete process.env.APT_PROXY;
   assert.doesNotMatch(buildPreseed(opts), /apt-proxy-detect/);

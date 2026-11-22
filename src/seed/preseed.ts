@@ -22,6 +22,8 @@ export interface PreseedOptions {
   /** Log the desktop user in automatically once installed. */
   autologin?: boolean;
   lateCommands?: string[];
+  /** Run as root inside the installed system at the end of the install. */
+  setupCommands?: string[];
   /**
    * Resolvers appended to the installer's own /etc/resolv.conf before the mirror
    * step. VMware's NAT DNS forwarder (the .2 address on the vmnet) is the single
@@ -44,6 +46,13 @@ export function aptProxyLateCommands(proxy: string): string[] {
     `rm -f /target/etc/apt/apt.conf.d/90curtin-aptproxy /target/etc/systemd/system/snapd.service.d/snap_proxy.conf`,
     `[ ! -f /target/etc/apt/apt.conf ] || sed -i '/Acquire::http::Proxy /d' /target/etc/apt/apt.conf`,
   ];
+}
+
+// Runs root commands in the installed system; base64 keeps any quoting intact through both installers.
+// The caller prefixes the installer's chroot runner (in-target / curtin in-target --).
+export function setupScriptCommand(commands: string[]): string {
+  const b64 = Buffer.from(commands.join("\n") + "\n").toString("base64");
+  return `sh -c 'echo ${b64} | base64 -d > /root/vmware-mcp-setup.sh; sh -e /root/vmware-mcp-setup.sh > /var/log/vmware-mcp-setup.log 2>&1 || { echo "exit status $?" >> /var/log/vmware-mcp-setup.log; touch /var/log/vmware-mcp-setup.failed; }; rm -f /root/vmware-mcp-setup.sh'`;
 }
 
 // Cover both display managers the Debian family ships; gdm3 reads daemon.conf on Debian, custom.conf on Ubuntu.
@@ -86,6 +95,7 @@ export function buildPreseed(o: PreseedOptions): string {
   // Marker the provisioner polls for.
   late.push(`printf 'provisioned\\n' > /target/var/log/vmware-mcp-ready`);
   late.push(...(o.lateCommands ?? []));
+  if (o.setupCommands?.length) late.push(`in-target ${setupScriptCommand(o.setupCommands)}`);
 
   const dns = o.fallbackDns ?? ["1.1.1.1", "8.8.8.8"];
 

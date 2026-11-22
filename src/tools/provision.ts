@@ -79,6 +79,12 @@ export function registerProvisionTools(server: McpServer): void {
           .describe("Windows 11 only: bypass the TPM and Secure Boot requirements"),
         autologin: z.boolean().default(true).describe("Linux: enable desktop auto-logon"),
         extraPackages: z.array(z.string()).default([]),
+        setupCommands: z
+          .array(z.string())
+          .default([])
+          .describe(
+            "Linux only (rejected for Windows): shell commands run as root inside the freshly installed system at the end of the install, before first boot. No interactive input. Use this for anything that needs root, since the installed user's sudo asks for a password. A failing command fails the provision; output goes to /var/log/vmware-mcp-setup.log in the guest.",
+          ),
         timezone: z.string().optional(),
         locale: z.string().optional(),
         bootCommand: z.string().optional().describe("Override the typed boot command (send_keys syntax)"),
@@ -316,6 +322,7 @@ export function registerProvisionTools(server: McpServer): void {
         bypassHardwareChecks: spec.bypassHardwareChecks,
         autologin: spec.autologin,
         extraPackages: spec.extraPackages,
+        setupCommands: spec.setupCommands,
         timezone: spec.timezone,
         locale: spec.locale,
         bootCommand: spec.bootCommand,
