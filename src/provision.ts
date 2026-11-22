@@ -373,7 +373,10 @@ export async function provisionVm(req: ProvisionRequest): Promise<ProvisionResul
     // Tools reporting present does not mean the account is usable, so prove it
     // by running a real command as the new user.
     let loginVerified = false;
-    const loginDeadline = Date.now() + 12 * 60_000;
+    // Ubuntu's live installer runs open-vm-tools too, so Tools says nothing about install progress:
+    // probe until the install deadline and never reset it.
+    const live = kind === "ubuntu-autoinstall";
+    const loginDeadline = live ? deadline : Date.now() + 12 * 60_000;
     let nudged = false;
     while (!loginVerified && Date.now() < loginDeadline) {
       const probe = await probeCredentials(cred, vmxPath, kind === "windows").catch(() => false);
@@ -386,7 +389,7 @@ export async function provisionVm(req: ProvisionRequest): Promise<ProvisionResul
       // completes the handshake in practice; observed on Kali, where guest ops
       // went from failing to working immediately afterwards. Cheaper than
       // failing the whole provision on a VM that has installed correctly.
-      if (!nudged && Date.now() > loginDeadline - 6 * 60_000) {
+      if (!live && !nudged && Date.now() > loginDeadline - 6 * 60_000) {
         nudged = true;
         const state = await vmrun.checkToolsState(vmxPath);
         if (state !== "running") {
